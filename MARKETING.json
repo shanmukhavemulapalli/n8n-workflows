@@ -1,0 +1,1317 @@
+{
+  "name": "MARKETING",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {}
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1DLG_9IrzI9VtforHb-3vxe6WqhGaQdxSkHHcoBgz8sg/edit?usp=sharing",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2078267178,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1DLG_9IrzI9VtforHb-3vxe6WqhGaQdxSkHHcoBgz8sg/edit#gid=2078267178"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ],
+      "id": "b08e3564-22eb-4162-b1f1-7d010802040d",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "dJFkJX2ES0E36ERS",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.resumeLink }}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        225
+      ],
+      "id": "4a155566-d331-48f5-85f7-94ed495f6c08",
+      "name": "HTTP DOWNLOAD RESUME",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/BHzefUZlZRKWxkTck/run-sync-get-dataset-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer apify_api_OUHqD26UyAvWMgRsynXAXFkjDMjDCW3qakoR"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $json.techStack }}"
+            },
+            {
+              "name": "location",
+              "value": "={{ $json.location }}"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {
+              "maxRedirects": 10
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "id": "2f20eabf-a45a-4a0c-881b-d7b74e536a71",
+      "name": "HTTP APIFY LIN",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = [];\n\nfor (const item of $input.all()) {\n  const rawExp = String(item.json[\"Experience\"] || \"\");\n  const match = rawExp.match(/\\d+/);\n  let expYears = match ? parseInt(match[0]) : 0;\n\n  // Map experience to level 1–5\n  let experienceLevel = \"1\";\n  if (expYears >= 1 && expYears <= 2) experienceLevel = \"2\";\n  else if (expYears >= 3 && expYears <= 4) experienceLevel = \"3\";\n  else if (expYears >= 5 && expYears <= 7) experienceLevel = \"4\";\n  else if (expYears >= 8) experienceLevel = \"5\";\n\n  // Clean resume link (convert Google Drive share link to direct download)\n  const rawResume = item.json[\"Resume\"] || \"\";\n  const matchId = rawResume.match(/\\/d\\/([^/]+)\\//);\n  const fileId = matchId && matchId[1] ? matchId[1] : \"\";\n\n  const fixedResumeLink = fileId\n    ? `https://drive.google.com/uc?export=download&id=${fileId}`\n    : rawResume; // fallback if not Google Drive\n\n  // Final item\n  result.push({\n    json: {\n      name: (item.json[\"Consultant Name\"] || \"\").toLowerCase().replace(/\\s+/g, ''),\n      techStack: item.json[\"Tech Stack\"] || \"\",\n      experienceLevel,\n      location: item.json[\"Location\"] || \"\",\n      relocation: item.json[\"Relocation\"] || \"\",\n      resumeLink: fixedResumeLink\n    }\n  });\n}\n\nreturn result;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ],
+      "id": "1ee62c00-0b49-41ca-9a2f-7cbe5f6570f3",
+      "name": "EXTRACTOR",
+      "executeOnce": true,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        660,
+        225
+      ],
+      "id": "24699d8e-9f14-49ba-befb-c1c4bbfbb991",
+      "name": "Extract from File",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an AI assistant that performs two tasks:\n\n---\n\nTask 1: Technical Skill Comparison\n\nCompare a candidate’s resume with a job description and identify missing technical skills.\n\nFocus only on technical terms, including:\n- Programming languages  \n- Frameworks  \n- Libraries  \n- Tools  \n- Cloud platforms  \n- Databases  \n- CI/CD tools  \n- DevOps technologies  \n- APIs\n\nfor the cover letter use the resume and the job descriptions return in around 200 to 300 words.\n\nReturn a valid and clean JSON object with the following structure:\n{\n  \"job_skills\": [...], \n  \"resume_skills\": [...], \n  \"missing_skills\": [...]\n  \"cover Letter\":[...]\n}\n\nOnly include relevant technical skills. Do not include soft skills, degrees, certifications, or general statements.\n\n\n\n",
+              "role": "system"
+            },
+            {
+              "content": "=This is the job description:\n{{ $json.description }}\n"
+            },
+            {
+              "content": "=This is the resume:\n{{ $json.text }}\n"
+            }
+          ]
+        },
+        "simplify": false,
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1320,
+        175
+      ],
+      "id": "ecb99194-b8f5-4485-b2eb-88c978b16574",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "mYsPdC3hLaMSokPt",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk",
+          "mode": "list",
+          "cachedResultName": "Skills Analysis ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk/edit?usp=drivesdk"
+        },
+        "title": "={{ $node[\"EXTRACTOR\"].json[\"name\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2576,
+        25
+      ],
+      "id": "e897c33c-5b39-4d54-9b42-8b120397bc8b",
+      "name": "Google Sheets",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "a1gK4GtUeKZxWTvW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "51eb926b-fda6-453f-a61d-42740da162d6",
+              "name": "columns",
+              "value": "=COMPANY,TITTLE,SALARY,LINK,LOCATION,POASTEDTIME,DESCRIPTION,TYPE,MISSING SKILLS,COVER LETTER",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "dotNotation": true
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2796,
+        25
+      ],
+      "id": "14fa47a3-79d2-4b35-a9a3-b3ed034a0718",
+      "name": "Edit Fields",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input data depending on mode\nconst item = $input.item || {};\nconst json = item.json || $json || {};\n\n// Check if 'columns' exists and is a string\nif (!json.columns || typeof json.columns !== 'string') {\n  throw new Error(\"Missing or invalid 'columns' field in input.\");\n}\n\n// Split the comma-separated string\nconst headersArray = json.columns.split(',');\n\n// Build the headers object\nconst headersObject = {};\nheadersArray.forEach(header => {\n  const trimmedHeader = header.trim();\n  headersObject[trimmedHeader] = trimmedHeader;\n});\n\n// Return result\nreturn [\n  {\n    json: headersObject\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3016,
+        25
+      ],
+      "id": "303ea066-ce8e-4e3c-bd56-487ffa12aefc",
+      "name": "Code",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk",
+          "mode": "list",
+          "cachedResultName": "Skills Analysis ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $node[\"EXTRACTOR\"].json[\"name\"] }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "COMPANY",
+              "displayName": "COMPANY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TITTLE",
+              "displayName": "TITTLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SALARY",
+              "displayName": "SALARY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LINK",
+              "displayName": "LINK",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LOCATION",
+              "displayName": "LOCATION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "POASTEDTIME",
+              "displayName": "POASTEDTIME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DESCRIPTION",
+              "displayName": "DESCRIPTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TYPE",
+              "displayName": "TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MISSING SKILLS",
+              "displayName": "MISSING SKILLS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        3236,
+        25
+      ],
+      "id": "e5027af7-76ca-41c9-9218-b278b63d3cb5",
+      "name": "Google Sheets1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "a1gK4GtUeKZxWTvW",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk",
+          "mode": "list",
+          "cachedResultName": "Skills Analysis ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $node[\"EXTRACTOR\"].json[\"name\"] }}",
+          "mode": "name"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        3456,
+        25
+      ],
+      "id": "efdd3c30-685d-448b-91fe-60a25662d9b2",
+      "name": "Google Sheets2",
+      "executeOnce": false,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "a1gK4GtUeKZxWTvW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        880,
+        175
+      ],
+      "id": "c5148426-2101-483f-8f04-68fa6bb901b1",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input1 = $input.all()[0]?.json || {};\nconst input2 = $input.all()[1]?.json || {};\n\nreturn [\n  {\n    json: {\n      description: input1.description || input2.description || '',\n      text: input1.text || input2.text || '',\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        175
+      ],
+      "id": "2bd1f6e7-8962-44dd-a413-e4ed31e4064e",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f1af4648-6e27-4237-9e52-7efb2697eed6",
+              "leftValue": "={{ $json.error .includes('not found')}}",
+              "rightValue": "=1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2356,
+        100
+      ],
+      "id": "8231c8c9-61d0-4dca-9f0b-ee900b757d71",
+      "name": "If",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk",
+          "mode": "list",
+          "cachedResultName": "Skills Analysis ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $node[\"EXTRACTOR\"].json[\"name\"] }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        2136,
+        100
+      ],
+      "id": "9cc517e0-4c20-45e6-a6d8-031d79225514",
+      "name": "Google Sheets3",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "retryOnFail": false,
+      "notesInFlow": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "a1gK4GtUeKZxWTvW",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk",
+          "mode": "list",
+          "cachedResultName": "Skills Analysis ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/14HDoZKj-jkzVEp9RjP7dZf09V004nNOWM3TMCwu50uk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $node[\"EXTRACTOR\"].json[\"name\"] }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "COMPANY": "={{ $items(\"HTTP APIFY LIN\")[0].json.companyName }}",
+            "TITTLE": "={{ $items('HTTP APIFY LIN')[0].json.title }}",
+            "SALARY": "={{$items('HTTP APIFY LIN')[0].json.salary }}",
+            "LINK": "={{ $items('HTTP APIFY LIN')[0].json.applyUrl }}",
+            "LOCATION": "={{ $('HTTP APIFY LIN').item.json.location }}",
+            "POASTEDTIME": "={{ $items('HTTP APIFY LIN')[0].json.publishedAt }}",
+            "DESCRIPTION": "={{ $items('HTTP APIFY LIN')[0].json.description }}",
+            "TYPE": "={{ $items('HTTP APIFY LIN')[0].json.contractType }}",
+            "MISSING SKILLS": "={{ $items('OpenAI')[0].json.choices[0].message.content.missing_skills }}",
+            "COVER LETTER": "={{ $items('OpenAI')[0].json.choices[0].message.content['cover Letter'] }}"
+          },
+          "matchingColumns": [
+            "COMPANY"
+          ],
+          "schema": [
+            {
+              "id": "COMPANY",
+              "displayName": "COMPANY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TITTLE",
+              "displayName": "TITTLE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SALARY",
+              "displayName": "SALARY",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LINK",
+              "displayName": "LINK",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LOCATION",
+              "displayName": "LOCATION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "POASTEDTIME",
+              "displayName": "POASTEDTIME",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "DESCRIPTION",
+              "displayName": "DESCRIPTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TYPE",
+              "displayName": "TYPE",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "MISSING SKILLS",
+              "displayName": "MISSING SKILLS",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "COVER LETTER",
+              "displayName": "COVER LETTER",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        3676,
+        100
+      ],
+      "id": "73aabd4a-35fe-41eb-9419-e1e60e3cefe2",
+      "name": "Google Sheets4",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "a1gK4GtUeKZxWTvW",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.choices?.[0]?.message?.content || {};\n\nreturn [\n  {\n    json: {\n      job_skills: content.job_skills || {},\n      resume_skills: content.resume_skills || {},\n      missing_skills: content.missing_skills || {}\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        175
+      ],
+      "id": "e4813309-4e77-4eaf-bffc-ddaff216c706",
+      "name": "Code2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        1916,
+        100
+      ],
+      "id": "4eb30d20-7263-45d1-9a2a-c00f30376fdc",
+      "name": "Merge1"
+    }
+  ],
+  "pinData": {
+    "HTTP APIFY LIN": [
+      {
+        "json": {
+          "id": "4221279439",
+          "publishedAt": "2025-05-02",
+          "salary": "",
+          "title": "Senior Software Engineer, Backend - Fintech",
+          "jobUrl": "https://www.linkedin.com/jobs/view/senior-software-engineer-backend-fintech-at-hopper-4221279439?trk=public_jobs_topcard-title",
+          "companyName": "Hopper",
+          "companyUrl": "https://ca.linkedin.com/company/hopper?trk=public_jobs_topcard-org-name",
+          "location": "Chicago, IL",
+          "postedTime": "2 weeks ago",
+          "applicationsCount": "Be among the first 25 applicants",
+          "description": "About The Job\n\nHopper’s Hotel Cancel For Any Reason (CFAR) team is responsible for integrating our proprietary fintech offerings with some of the largest travel companies in the world as well as our own direct to customer offerings.\n\nAs such the role is both B2C and B2B2C. Within this vertical we construct systems and build fintech offerings to scale globally, managing how to evolve and innovate on current and new offerings, and translating that to customer value and business value to Hopper as a whole.\n\nWe're looking for a Senior Backend Developer to join our growing fintech team! Within our team you will have the opportunity to deliver an outsized impact for the company on one of the company’s most critical roadmaps.\n\nAs a Sr. Software Engineer you will be directly responsible for designing, implementing, deploying and operating the complex backend systems that power our integrations!\n\nWhat Would Your Day-to-day Look Like\n\n\n * Iterate on features in an agile manner using Scala (no prior experience required) and technologies like GCP, OpenAPI, BigQuery, Pub/Sub among others.\n * Decide how to best build core systems in the context of our microservices architecture\n * Ship your first code in days, iterating on features in an agile manner\n * Collaborate with a diverse group of people, giving and receiving feedback for growth\n * Execute on big opportunities, helping Hopper rise to the top of the travel industry\n   \n   \n\nAn Ideal Candidate Has\n\n\n * The ability to bring leading industry techniques and technologies to the table\n * A strong understanding of distributed systems and how architectural decisions affect performance and maintainability\n * Excelled in cross-functional teams, working fluidly with Product Managers, Data Scientists, Frontend Engineers, and other highly skilled specialists\n * A passionate focus on quality, writing testable code that performs and scales\n * The ability to work with minimal guidance, be proactive and to handle uncertainty, ambiguity and the challenge of quickly evolving goals\n * Prior cloud experience\n * Working with Scala and its libraries\n * Prior travel or eCommerce experience\n * Experience and desire to contribute to front ends as a FS engineer is a plus, especially React web front ends\n   \n   \n\nPerks And Benefits Of Working With Us\n\n\n * Well-funded and proven startup with large ambitions, competitive salary and the upsides of pre-IPO equity packages.\n * Unlimited PTO.\n * Carrot Cash travel stipend.\n * Access to co-working space on demand through FlexDesk AND Work-from-home stipend.\n * Please ask us about our very generous parental leave, much above industry standards!.\n * Entrepreneurial culture where pushing limits and taking risks is everyday business.\n * Open communication with management and company leadership.\n * Small, dynamic teams = massive impact.\n * 100% employer paid Medical, Dental and Vision coverage for employees.\n * Access to Disability & Life insurance.\n * Health Reimbursement Account (HRA).\n * DCA/ FSA and access to 401k plan\n   \n   \n\nMore About Hopper\n\nAt Hopper, we are on a mission to become the leading travel platform globally – powering Hopper’s mobile app, website and our B2B business, HTS (Hopper Technology Solutions). By leveraging massive amounts of data and advanced machine learning algorithms, Hopper combines its world-class travel agency offering with proprietary fintech products to bring transparency, flexibility and savings to travelers globally. We have developed several unique fintech solutions that address everything from pricing volatility to trip disruptions – helping people travel better and save more on their trips.\n\nThe Hopper platform serves hundreds of millions of travelers globally and continues to capture market share around the world. Ranked the third largest online travel agency in North America, the Hopper app has been downloaded over 120 million times and has become largely popular among younger travelers – with 70% of its users being Gen Z and millennials.\n\nWhile everyone knows us as the Gen Z and Millennial travel app, Hopper has evolved to become much more than that. In recent years, we’ve grown into a global travel agency and travel fintech provider that powers some of the world’s largest brands.\n\nThrough HTS, our B2B division, the company supercharges its partners’ direct channels by integrating our fintech products on their sites or powering end-to-end travel portals. Today, our partners include leading travel brands like Capital One, Nubank, Air Canada and many more.\n\nHere are just a few stats that demonstrate the company’s recent growth:\n\nHopper sells billion worth of travel and travel fintech every year. In 2023, over 1.3 billion trips were planned through the Hopper app and our HTS partnerships.\n\nOur fintech products – including Price Freeze, Flexibility for Any Reason and Flight Disruption Assistance – have exceptionally strong CSAT because the terms are always clear, and customers receive instant, no-questions-asked resolutions.\n\nAlmost 30% of our app customers purchase at least one fintech product when making a booking; and consumers are 1.6x more likely to repurchase if they add fintech to their booking vs if they booked just travel.\n\nGiven the success of its fintech products, Hopper launched a B2B initiative, HTS (Hopper Technology Solutions), which represents more than 50% of the business.\n\nThrough HTS, any travel provider (airlines, hotels, banks, travel agencies, etc.) can integrate and seamlessly distribute Hopper’s fintech or travel inventory on their direct channels. As its first HTS partnership, the company partnered with Capital One to co-develop Capital One Travel, a new travel portal designed specifically for cardholders. Other HTS partners include Air Canada, Uber, CommBank, Nubank, Flair Airlines with many more in the pipeline.\n\nFeatured in Apple’s Best of the App Store list of Essential Travel Apps in 2023 and recognized by the likes of Fast Company’s Most Innovative Companies, Hopper has been downloaded over 120 million times and continues to have millions of new installs each month. Hopper is now the #3 largest online travel agency in North America and 70% of our app customers are Gen-Z and millennials travelers.\n\nHopper has raised over $750 million USD of private capital and is backed by some of the largest institutional investors and banks in the world. Hopper is primed to continue its acceleration as the world’s fastest-growing mobile-first travel marketplace.\n\nCome take off with us!\n\nCompensation Range: $150K - $350K\n\n",
+          "contractType": "Full-time",
+          "experienceLevel": "Mid-Senior level",
+          "workType": "Engineering and Information Technology",
+          "sector": "Software Development",
+          "applyUrl": "https://jobs.ashbyhq.com/hopper/27b60d89-f6dd-40e6-b1a7-01f296358bf7/application?utm_source=LinkedIn_Job_Wrapping",
+          "applyType": "EXTERNAL",
+          "descriptionHtml": "\n          <strong>About The Job<br><br></strong>Hopper&#x2019;s Hotel Cancel For Any Reason (CFAR) team is responsible for integrating our proprietary fintech offerings with some of the largest travel companies in the world as well as our own direct to customer offerings.<br><br>As such the role is both B2C and B2B2C. Within this vertical we construct systems and build fintech offerings to scale globally, managing how to evolve and innovate on current and new offerings, and translating that to customer value and business value to Hopper as a whole.<br><br>We&apos;re looking for a Senior Backend Developer to join our growing fintech team! Within our team you will have the opportunity to deliver an outsized impact for the company on one of the company&#x2019;s most critical roadmaps.<br><br>As a Sr. Software Engineer you will be directly responsible for designing, implementing, deploying and operating the complex backend systems that power our integrations!<br><br><strong>What Would Your Day-to-day Look Like<br><br></strong><ul><li>Iterate on features in an agile manner using Scala (no prior experience required) and technologies like GCP, OpenAPI, BigQuery, Pub/Sub among others. </li><li>Decide how to best build core systems in the context of our microservices architecture</li><li>Ship your first code in days, iterating on features in an agile manner</li><li>Collaborate with a diverse group of people, giving and receiving feedback for growth</li><li>Execute on big opportunities, helping Hopper rise to the top of the travel industry<br><br></li></ul><strong>An Ideal Candidate Has<br><br></strong><ul><li>The ability to bring leading industry techniques and technologies to the table</li><li>A strong understanding of distributed systems and how architectural decisions affect performance and maintainability</li><li>Excelled in cross-functional teams, working fluidly with Product Managers, Data Scientists, Frontend Engineers, and other highly skilled specialists</li><li>A passionate focus on quality, writing testable code that performs and scales</li><li>The ability to work with minimal guidance, be proactive and to handle uncertainty, ambiguity and the challenge of quickly evolving goals</li><li>Prior cloud experience</li><li>Working with Scala and its libraries</li><li>Prior travel or eCommerce experience</li><li>Experience and desire to contribute to front ends as a FS engineer is a plus, especially React web front ends<br><br></li></ul><strong>Perks And Benefits Of Working With Us<br><br></strong><ul><li>Well-funded and proven startup with large ambitions, competitive salary and the upsides of pre-IPO equity packages.</li><li>Unlimited PTO.</li><li>Carrot Cash travel stipend.</li><li>Access to co-working space on demand through FlexDesk AND Work-from-home stipend.</li><li>Please ask us about our very generous parental leave, much above industry standards!.</li><li>Entrepreneurial culture where pushing limits and taking risks is everyday business.</li><li>Open communication with management and company leadership.</li><li>Small, dynamic teams = massive impact.</li><li>100% employer paid Medical, Dental and Vision coverage for employees.</li><li>Access to Disability &amp; Life insurance.</li><li>Health Reimbursement Account (HRA).</li><li>DCA/ FSA and access to 401k plan<br><br></li></ul><strong>More About Hopper<br><br></strong>At Hopper, we are on a mission to become the leading travel platform globally &#x2013; powering Hopper&#x2019;s mobile app, website and our B2B business, HTS (Hopper Technology Solutions). By leveraging massive amounts of data and advanced machine learning algorithms, Hopper combines its world-class travel agency offering with proprietary fintech products to bring transparency, flexibility and savings to travelers globally. We have developed several unique fintech solutions that address everything from pricing volatility to trip disruptions &#x2013; helping people travel better and save more on their trips.<br><br>The Hopper platform serves hundreds of millions of travelers globally and continues to capture market share around the world. Ranked the third largest online travel agency in North America, the Hopper app has been downloaded over 120 million times and has become largely popular among younger travelers &#x2013; with 70% of its users being Gen Z and millennials.<br><br>While everyone knows us as the Gen Z and Millennial travel app, Hopper has evolved to become much more than that. In recent years, we&#x2019;ve grown into a global travel agency and travel fintech provider that powers some of the world&#x2019;s largest brands.<br><br>Through HTS, our B2B division, the company supercharges its partners&#x2019; direct channels by integrating our fintech products on their sites or powering end-to-end travel portals. Today, our partners include leading travel brands like Capital One, Nubank, Air Canada and many more.<br><br>Here are just a few stats that demonstrate the company&#x2019;s recent growth:<br><br>Hopper sells billion worth of travel and travel fintech every year. In 2023, over 1.3 billion trips were planned through the Hopper app and our HTS partnerships.<br><br>Our fintech products &#x2013; including Price Freeze, Flexibility for Any Reason and Flight Disruption Assistance &#x2013; have exceptionally strong CSAT because the terms are always clear, and customers receive instant, no-questions-asked resolutions.<br><br>Almost 30% of our app customers purchase at least one fintech product when making a booking; and consumers are 1.6x more likely to repurchase if they add fintech to their booking vs if they booked just travel.<br><br>Given the success of its fintech products, Hopper launched a B2B initiative, HTS (Hopper Technology Solutions), which represents more than 50% of the business.<br><br>Through HTS, any travel provider (airlines, hotels, banks, travel agencies, etc.) can integrate and seamlessly distribute Hopper&#x2019;s fintech or travel inventory on their direct channels. As its first HTS partnership, the company partnered with Capital One to co-develop Capital One Travel, a new travel portal designed specifically for cardholders. Other HTS partners include Air Canada, Uber, CommBank, Nubank, Flair Airlines with many more in the pipeline.<br><br>Featured in Apple&#x2019;s Best of the App Store list of Essential Travel Apps in 2023 and recognized by the likes of Fast Company&#x2019;s Most Innovative Companies, Hopper has been downloaded over 120 million times and continues to have millions of new installs each month. Hopper is now the #3 largest online travel agency in North America and 70% of our app customers are Gen-Z and millennials travelers.<br><br>Hopper has raised over &#x24;750 million USD of private capital and is backed by some of the largest institutional investors and banks in the world. Hopper is primed to continue its acceleration as the world&#x2019;s fastest-growing mobile-first travel marketplace.<br><br>Come take off with us!<br><br>Compensation Range: &#x24;150K - &#x24;350K<br><br>\n        ",
+          "companyId": "1373602",
+          "benefits": "",
+          "posterProfileUrl": "",
+          "posterFullName": ""
+        }
+      }
+    ],
+    "EXTRACTOR": [
+      {
+        "json": {
+          "name": "advithpullela",
+          "techStack": ".Net FS Developer",
+          "experienceLevel": "5",
+          "location": "Chicago, IL",
+          "relocation": "Open",
+          "resumeLink": "https://drive.google.com/uc?export=download&id=1XrboT8ISGmi0tWDhvhID58ETMhpB323j"
+        }
+      },
+      {
+        "json": {
+          "name": "Sruthu",
+          "techStack": "Java",
+          "experienceLevel": "4",
+          "location": "Atlanta, GA",
+          "relocation": "Open",
+          "resumeLink": "https://drive.google.com/uc?export=download&id=1VMeNfy_9ShbJxIGl6bsgT7JOqWnT9Htk"
+        }
+      },
+      {
+        "json": {
+          "name": "Iswarya Ranga",
+          "techStack": "Java FS Developer",
+          "experienceLevel": "4",
+          "location": "Chicago, IL",
+          "relocation": "Open",
+          "resumeLink": " "
+        }
+      },
+      {
+        "json": {
+          "name": "Kalpana",
+          "techStack": ".Net FS Developer",
+          "experienceLevel": "5",
+          "location": "Montgomery, AL",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Vasavi",
+          "techStack": "SFDC Developer",
+          "experienceLevel": "5",
+          "location": "Austin, TX",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Vamsi Joseph",
+          "techStack": "Java Developer",
+          "experienceLevel": "4",
+          "location": "Columbus, OH",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Ramya Krishna Gadiparthi",
+          "techStack": "Java FS Developer",
+          "experienceLevel": "4",
+          "location": "Atlanta, GA",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Vasanth Kumar Kaja",
+          "techStack": "Java FS Developer",
+          "experienceLevel": "4",
+          "location": "San Antonio, TX",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Advaith",
+          "techStack": ".Net FS Developer",
+          "experienceLevel": "5",
+          "location": "Omaha, NE",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Vamsi Kumar",
+          "techStack": "DevOps Engineer",
+          "experienceLevel": "4",
+          "location": "Atlanta, GA",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Saideep Reddy",
+          "techStack": "Data Scientist",
+          "experienceLevel": "2",
+          "location": "Iselin, NJ",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Ramya",
+          "techStack": "SAP ABAP Developer",
+          "experienceLevel": "5",
+          "location": "Austin, TX",
+          "relocation": "Remote",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Anil Mula",
+          "techStack": "Data Engineer",
+          "experienceLevel": "5",
+          "location": "Atlanta, GA",
+          "relocation": "Local/Remote",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Uday",
+          "techStack": "Java FS Developer",
+          "experienceLevel": "5",
+          "location": "Atlanta, GA",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Nikhila",
+          "techStack": "Data Scientist",
+          "experienceLevel": "2",
+          "location": "Fairfax, VA",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Varun Krishna Makineni",
+          "techStack": "Data Analyst",
+          "experienceLevel": "5",
+          "location": "Plano, TX",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Venkata Ravi Sureddy",
+          "techStack": ".Net FS Developer",
+          "experienceLevel": "5",
+          "location": "Austin, TX",
+          "relocation": "Remote",
+          "resumeLink": ""
+        }
+      },
+      {
+        "json": {
+          "name": "Yelchuri Venkata Chandrashekhar Gupta",
+          "techStack": "Sr Data Engineer",
+          "experienceLevel": "4",
+          "location": "Philadelphia, PA",
+          "relocation": "Open",
+          "resumeLink": ""
+        }
+      }
+    ],
+    "Extract from File": [
+      {
+        "json": {
+          "numpages": 6,
+          "numrender": 6,
+          "info": {
+            "PDFFormatVersion": "1.4",
+            "Language": null,
+            "EncryptFilterName": null,
+            "IsLinearized": false,
+            "IsAcroFormPresent": false,
+            "IsXFAPresent": false,
+            "IsCollectionPresent": false,
+            "IsSignaturesPresent": false,
+            "Producer": "macOS Version 12.7.6 (Build 21H1320) Quartz PDFContext",
+            "CreationDate": "D:20250420174947Z00'00'",
+            "ModDate": "D:20250420174947Z00'00'"
+          },
+          "text": "Advith Pullela\nadvithpullelaa@gmail.com\n+1 414 801 3808\nPROFESSIONAL SUMMARY:\n• 8+ years of experience in gathering requirement analysis, architecture, design and development of enterprise NAer\napplicaAons, documentaAon of user requirements, funcAonal, systems integraAon and architectural specificaAons\nusing Microso@ Technologies.\n• Strong experience in Waterfall and Agile Methodologies in ApplicaAon Development with hands on experience\nworking on Agile Development Team following SCRUM Methodology and paired programming using TDD.\n• Hands on experience in developing applicaAons using MVC 5, ASP.Net, EnLty Framework ADO.Net, and C#, HTML,\nCSS, JavaScript, React.JS, Bootstrap, SQL Server and GraphQL.\n• Experience in developing client/server, internet & intranet applicaLons using ASP.NET, C#, Web API, SOA, Web\nServices, HTML4/5, DHTML XML, ADO.NET, VBScript, JavaScript, SQL Server, AJAX, Angular, WCF, jQuery and CSS.\n• Extensive experience on .NET security features such as AuthenAcaAon & AuthorizaAon, Windows-based\nAuthenAcaAon, Forms-based AuthenAcaAon, Authorizing Users and Roles.\n• Experience with Data Accessing including using Data Adapter, Data Reader, and Dataset in ADO.NET and Language\nIntegrated Query (LINQ) Providers for data manipulaAon.\n• Experience in Azure developing and deployment, Worked in Azure Web applicaAon, API management for\nrestricAng policies and registraAon Azure storage- storage accounts, blob storage, Azure Synapse, managed storage\nand unmanaged storages and Azure SQL database and No-SQL cosmos DB.\n• UAlized Azure cloud plaborm to host and manage applicaAons, leveraging Azure App Service and Azure\nKubernetes Service (AKS) for effortless scalability, high availability, and seamless integraAon with other services.\n• Proficient in gathering requirements, architecture, and development of enterprise N-Ler applicaAons using\nMicroso@ Technologies, GraphQL, and React.js.\n• Proficient in uAlizing middleware in Redux for tasks such as logging, handling asynchronous operaAons.\n• Integrated React-Redux hooks such as ‘useSelector’ and ‘useDispatch’ for seamless integraAon of components.\n• Experience in deploying applicaAons with Cloud Services by creaAng a simple Cloud Service with Visual Studio,\ntesAng it locally, deploying to a live Azure/AWS Cloud environment.\n• Expert in hosAng Windows Web APIs, ASP.NET applicaLons in IIS and creaAng Cloud Instance using AWS for\ndeployment in product environment.\n• Hands on experience in developing front end applicaAons with Angular, backend applicaAons with C#/.NET, and\ndatabase interacAon with Microservice architecture using .NET.\n• Experienced in developing Web Forms and Web Services in ASP.NET, C#.NET.\n• Experience working with ASP.NET MVC and EnLty Framework as ORM Mapping tool for Data Access layer.\n• Extensive experience in Responsive web-based page and site designs using HTML, XHTML, DHTML, CSS, Bootstrap,\nAJAX and GraphQL.\n• Good experience working with ASP.NET Model-View-Controller (MVC), Language-Integrated Query (LINQ) in Web\npages to retrieve and modify data.\n• Proficient in developing web applicaAons using .NET Blazor framework for building interacAve, single-page\napplicaAons (SPAs).\n• Experience in developing Microservices to uAlize .NET Core REST Webservices in the client's environment.\n• Well versed in N-Tier Architecture and Web applicaAons using Windows Forms, Web Forms and Windows\nServices, SOAP, IIS and XLST.\n• ExperAse in using Language-Integrated Query (LINQ to Objects, LINQ to XML, and LINQ to SQL) and retrieve data\nfrom different data sources.\n• Extensive experience on Queries, Stored Procedures, FuncAons, Triggers and Views in SQL Server and Oracle to\naccess database.\n• Experience on Microservices- Developed micro services using python to collect usage data from different data\ncentres to bill clients of their cloud usage.\n\n• Hands-on experience with SQL Server IntegraLon Services (SSIS) and ReporLng Services (SSRS) packages for\nimport and export of data for creaAng reports for business users and management.\n• Knowledge in using Source Controls like GIT, Team FoundaLon Server (TFS), Subversion (SVN) and Visual Source\nSafe (VSS).\n• Experience in wriAng test cases with N-Unit and Karma for Unit test and performing end to end test using\nProtractor.\nTECHNICAL SKILLS:\n.NET Technologies \n.NET Framework, .Net core, ASP.NET, ASP.NET MVC, ADO.NET, LINQ, WPF, WCF, WinForms,\nWeb Forms, ADO.NET, EnAty Framework, VB.NET.\nWeb Technologies \nHTML, HTML5, CSS, AJAX, JavaScript, React.JS, jQuery, XAML, Web Forms, Razor, Web\nServices, IIS, Blazor, GraphQL.\nCloud Services Microsok Azure\nDatabases SQL Server, Oracle 11g, MS Access\nReporLng Tools Crystal Reports, SSRS, SSIS\nOther Tools Visual Studio, Visual Studio Code, MS SQL Server\nVersion Control Tools VSS, Git, TFS, SVN\nDesign Paberns MVC, MVVM, MVP\nOperaLng System Microsok Windows XP Pro, NT, XP, Vista, 7\nPROFESSIONAL EXPERIENCE:\nClient: Werner Enterprises - Omaha, NE Aug 2022 – Present\nRole: Senior .Net Full Stack Developer\nProject DescripLon: The project involved in the development of web applicaAon which facilitates users with condiAonal\ndemand forecasAng, schedule adapAvity and customer segmentaAon using Microsok Technologies such as .NET Core,\nVisual Studio 2022, C#, Angular, React, Web API, Azure Cloud Services and GIT.\nResponsibiliLes:\n• Designed and created applicaAon using .NET 6 using C# as major developing language.\n• Used Azure Cloud Services, performed various web operaAons in Azure App Service.\n• Implemented Azure Storage, Azure , Azure Data Factory, Azure Services and developing Azure Web Role.\n• Created Azure Blob for storing unstructured data in the cloud as blobs.\n• Created and maintained Data Lake across Azure using ADF, Azure Synapse and Azure Databricks\n• ExperAse in uAlizing Docker for containerizaAon, providing a consistent and portable environment for applicaAons.\n• Developed ASP.NET MVC web pages using Visual Studio, C# and JavaScript used for client-side scripAng.\n• Developed and implemented GraphQL queries and schemas for efficient data retrieval and integraAon in the web\napplicaAon.\n• Developed dynamic, component-driven UIs using Angular 14, improving frontend modularity and reducing code\nredundancy.\n• Integrated Angular forms and reacAve state management to handle complex user interacAons with seamless\nvalidaAon and performance opAmizaAon.\n• Experience in integraAng TypeScript with popular .NET technologies, such as ASP.NET Core or ASP.NET MVC, for\nbuilding modern and scalable web applicaAons.\n• Configured and managed Azure Key Vault to securely store and access secrets, cerAficates, and keys used across\nthe applicaAon lifecycle.\n\n• Leveraged Azure App Services for deploying scalable, high-availability web applicaAons with conAnuous\nintegraAon and deployment using Azure DevOps.\n• Used ADO.NET components like SQL ConnecLon, SQL Command, Data Adapter, Data Set, Data Reader, Grid View\nand Details View for database connecAon and database communicaAon.\n• ExperAse in integraAng and working with NoSQL databases to handle diverse and unstructured.\n• Created a Virtual Network on Windows Azure to connect all servers and applicaAons on the plaborm.\n• Integrated Cosmos streams, SQL data (Azure database) to UI Using MVC architecture.\n• Created and deployed XML Web Services (WCF) using ASP.NET and C#, used them to generate the proxy class files\nbased on the web services and consumed in web applicaAon.\n• ExperAse in implemenAng Redux, a state management paoern, in conjuncAon with front-end frameworks like\nReact for scalable and maintainable web applicaAons.\n• Integrated Azure Service Bus for decoupled communicaAon between microservices, ensuring reliable message\ndelivery and fault-tolerant event handling in a distributed system.\n• Leveraged Azure Event Hubs to stream real-Ame telemetry data from various applicaAons, facilitaAng scalable data\ningesAon and analyAcs through Azure Stream AnalyAcs.\n• UAlized React.js to create dynamic and responsive user interfaces, enhancing user experience and interacAon.\n• Extensively used AJAX and JSON/XML data to get server-side data and display it to users.\n• Involved in the Web/ApplicaAon development using Python 3.5, HTML5, CSS3, AJAX, JSON and Jquery.\n• Used EnLty Framework Code First approach for the Data Access Layer for the ASP.NET MVC 5.0 applicaLon.\n• Used Model-View-Control (MVC) architecture with Razor Engine in web applicaAons to view the HTML.\n• Created front-end applicaAons for customer search using Angular and APIs with .NET Core.\n• Developed RESTful APIs and backend services using ASP.NET Core, facilitaAng efficient communicaAon between\nthe frontend and backend components.\n• Used ASP.NET Web API for RESTful Web API service.\n• UAlized HTML, CSS, and JavaScript to complement Blazor components, ensuring a seamless and visually appealing\nuser experience.\n• Used GIT extensively to keep track of story and hours worked in a task.\nEnvironment: .Net 6, ASP.NET MVC, C#, VB.Net, ADO.NET, Microsok Azure Cloud, Razor Engine, Microsok Visual\nStudio 2022, TFS, SSIS, MVC, EnAty Framework, Docker, Kubernetes, Cosmos, Sitecore, Typescript, PowerShell ScripAng,\nSQL Server 2018, WCF, HTML, React.JS, Angular, GraphQL, Blazor, CSS, XML, jQuery, IIS\nClient: Amex– Pheonix, AZ Sep 2021 – July 2022\nRole: .Net Full Stack Developer\nProject DescripLon: The main objecAve of the project is to improve customer relaAonship management, personalize\nand target campaigns, delivery of the most recent informaAon by product updates, offers and promoAons. I was\ninvolved in this project by using ASP.Net MVC, C#.Net, VB.Net, Microsok Azure and Visual Studio 2019.\nResponsibiliLes:\n• Developed Web applicaAons using ASP.NET MVC, C#.NET, VB.NET, LINQ, EnLty Framework and WCF.\n• Gathered client requirements and converted them into the technical specificaAons and developed Web Forms\nusing C#.NET.\n• Used .NET Framework 4.5 N-Aer architecture and Object-Oriented Programming (OOP) concepts (C#) for\nApplicaAon Development.\n• UAlized Azure cloud plaborm to host and manage applicaAons, leveraging Azure App Service and Azure Kubernetes\nService (AKS) for effortless scalability, high availability, and seamless integraAon.\n• Develop and tested many features for dashboard using Python, Java, Bootstrap, CSS, JavaScript and Jquery.\n• Implemented stored procedures within SQL Server as part of Azure Synapse workflows, opAmizing data\nprocessing and enhancing overall system performance.\n• Designed and implemented Cosmos DB (Document Model) from scratch.\n• Implemented Azure Data factory, Storage Account and Linked service to load the Data from various sources to\nthe Azure SQL Server.\n• Integrated GraphQL to opAmize data fetching and provided real-Ame updates in the applicaAon.\n• Experience of the principles of Redux, including a single source of truth, state immutability, and predictable state\nchanges, to manage applicaAon state effecAvely in .NET projects.\n\n• Implemented Azure Service Bus to enable asynchronous communicaAon between distributed components,\nensuring message durability and seamless failover handling.\n• UAlized Azure Key Vault to centrally manage and securely retrieve secrets, connecAon strings, and cerAficates used\nacross the applicaAon and DevOps pipelines.\n• Created fully automated deployment of Infrastructure in Azure using Azure DevOps Pipelines\n• Developed and maintained user interfaces using React.js for improved performance and user engagement.\n• Implemented RESTful APIs with Azure Service Fabric stateless microservices using ASP.NET Core.\n• Leveraged C# for both client and server-side development, enabling a unified codebase and seamless data\ncommunicaAon between client and server in Blazor applicaLons.\n• Implemented CRUD funcAonality with EnAty framework in ASP.NET MVC and implemented sorAng, filtering, and\npaging with Code First in MVC with the help of Azure SQL Server.\n• Used ASP.NET Web API as the plaborm for building Resbul applicaAons on the .NET Framework.\n• Used Web API controllers which support GET, POST, PUT, and DELETE.\n• Used Azure Cosmos DB service to store and access data from a .NET Core console applicaAon.\n• Worked on ASP.NET Web API framework for building HTTP services that can be accessed from various clients, such\nas browsers and mobile devices.\n• Designed the web UI using Razor View Engine, HTML, XSL/XSLT, JavaScript, CSS, jQuery, Angular 9, Bootstrap,\nWeb Forms and AJAX controls.\n• Involved in calling Stored Procedures and FuncAons from EnLty Framework using C#.NET, VB.NET and Visual\nStudio 2019.\n• Developed service class in Windows CommunicaLon FoundaLon (WCF) service to retrieve the customer payment\ndetails for processing payments.\n• Worked on developing data-driven workflows using Spark, Hive, Pig, Python, Impala, and HBase for further\ningesAng the data.\n• Developed Resbul service using Web API for communicaAng with the in-rule service.\n• Implemented PL/SQL queries, triggers, Packages and Stored Procedures as per the design and development related\nrequirements of the project.\n• Created SSRS Data Model projects using Microsok Visual Studio 2019 and using Report Builder for report server\nto facilitate Ad-hoc reporAng by the business users.\n• Implemented comprehensive unit tests and integraAon tests for Blazor components and backend services,\nensuring code quality and reliability.\n• Involved in configuring and managing source using GIT.\nEnvironment: .NET, ASP.NET MVC, Razor, C#.NET, VB.NET, Azure Cloud, Azure Synapse, Visual Studio 2019, Win Forms,\nC#, EnAty Framework, Python, WCF, Angular 9, HTML, CMS, CSS, JavaScript, Blazor, Sitecore, Docker, Typescript,\nReact.JS, jQuery, GraphQL, Cosmos DB, Ajax, LINQ, T-SQL, Shell ScripAng, Resbul, MongoDB, Git, Jira, Agile\nClient: InternaLonal Paper– Memphis, TN June 2020 – Aug 2021\nRole: Full Stack .Net Developer\nProject DescripLon: The main objecAve of the project is to develop the portal for all paper mills across the world,\nwhere they can schedule operaAons and jobs.\nResponsibiliLes:\n• Worked on modern sokware development models and theories, such as the object-oriented programming (OOP)\nmodel, event-driven programming.\n• Designed and developed web pages using VB.Net, HTML, TypeScript, JavaScript, Angular JS, and CSS.\n• Gathered client requirements and converted them into the technical specificaAons and developed Web Forms\nusing C#.NET. Designed and created various User Controls, Custom Controls.\n• Developed client-side JavaScript framework using Knockout.js employing ASP.NET MVC and Web API.\n• Used ASP.NET MVC, CSS, JavaScript, Angular, and C# to create Razor views with strongly typed view models and\nHTML Helpers, as well as parAal views.\n• IniAated alerts in CloudWatch for tracking the server's performance, CPU uAlizaAon, disc uAlizaAon, and other\nmetrics to take suggested measures for improved performance.\n• Leveraged Angular to create dynamic dashboards and reports for monitoring and analyzing data related to fraud\nprevenAon.\n• Implemented communicaAon between Microservices using rabbitMQ.\n\n• Accessed and performed the data analysis on RDS data service (Oracle).\n• Worked on applicaAon design paoern Abstract Factory, MVC, MVP, WCF, N-Tier, Domain Driven Design, Inversion\nof Control, Object per Query etc.\n• Worked on RESTful service framework, C#, SQL, HTML, XML, CSS, Enterprise service framework.\n• Used NodeJS, Backbone.js and Require.js MVC Frameworks in the development of web applicaAons.\n• Implemented WCF services and beoer logging excepAon management support to help in the premature detecAon\nof new problems.\n• Involved in wriAng complex Database Queries, Adored procedures, Trigger, View, FuncAons using SQL, MS SQL\nServer.\n• Worked on the UI layer using HTML, CSS, and JavaScript to give a good look and feel for the site.\nEnvironment: ASP.NET, VB.NET, C#, ADO.NET,SQL Server 2012, HTML, CSS, ReactJS, XML, JavaScript, GraphQL, Oracle\nSQL Developer, Microsok Visual Studio, IIS, SOAP, Resbul, MVC, jQuery, Ajax, Web Forms, PowerShell\nClient: FedEx – Memphis, TN July 2019 – May 2020\nRole: .Net Developer\nProject DescripLon: The goal of the project is to develop an imitaAon applicaAon for the exisAng staAon management.\nThe applicaAon structured to address AckeAng issues, suggesAons for improvements and worked on end-to-end\ndevelopment of the applicaAon using .NET 4.6, MVC, Angular 4 and Web API.\nResponsibiliLes:\n• Worked on Agile Methodology (Scrum) to meet Amelines with quality deliverables.\n• Developed new product features for the high-profile single page applicaAon applying knowledge of ASP.NET MVC,\nJavaScript resulAng in consistent deployment of major products updates.\n• Used .NET MVC, n-Aer architecture, and Object-Oriented Methodologies for applicaAon development.\n• Designed and implemented Business Layer using ASP.NET.\n• Designed and implemented User Interface Layer using ASP.NET MVC architecture.\n• Developed the front-end screens in ASP.NET and C#.NET using Visual Studio.\n• Created different business classes and interfaces using .NET Core and .Net Framework 4.6 with OOP Methodology.\n• Refactored the desktop applicaAon applying knowledge of .NET Core, ASP.NET Core and WPF and added addiAonal\nfeatures improving performance and usability by 20%.\n• Implemented GraphQL for enhancing the imitaAon applicaAon's data retrieval and performance.\n• ExperAse in state management using React Hooks and Redux, ensuring efficient and predictable state changes in\ncomplex applicaAons.\n• Generated Python Django forms to record data of online users and used PyTest for wriAng test cases.\n• Designed and implemented Data access layer using ADO.NET to connect and retrieve or manipulate database.\n• Developed interacAve and responsive user interfaces using React.js, ensuring a user-friendly experience.\n• Implemented MVC 4.0 to reduce the complexity and to get full control over the behaviour of the applicaAon.\n• Used ASP.NET AJAX and updated web pages to implement the AJAX funcAonality to enhance the applicaAon.\n• Involved in customizing the Web Forms Data grid for GUI.\n• Customized and styled Blazor components using Bootstrap and Material UI for a polished and user-friendly\ninterface.\n• Worked on Server-side validaAons using C# and ASP.Net and client-side validaAons using JavaScript.\n• Worked with IIS 7 and .NET Assemblies during applicaAon deployment.\n• Created and hosted Resoul Services, Web services and Web API also used different bindings to make it available\nto several types of clients.\n• Implemented Dependency InjecAon on Web API controller with EnLty Framework for handling resbul requests\nand responses using C#.NET.\n• Implemented PL/SQL queries, triggers, Packages and Stored Procedures as per the design and development\nrelated requirements of the project.\n• Used Jira to keep track of various stages of the bugs and incidents.\nEnvironment: .NET Framework 4.6, ASP.NET MVC, ASP.NET Core, ASP.NET Web API, ADO.NET, .NET Core, C#, WCF,\nWPF, React.JS, GraphQL, EnAty Framework, LINQ, IIS, MS Visio, SQL, JavaScript, jQuery, HTML5, CSS3, Visual Studio\n2016, TFS, Jira, Agile\n\nClient: Mutual Mobile, Hyderabad, India Jan 2015 – Nov 2017\nRole: .Net Developer\nProject DescripLon: Mutual Mobile is a well-known development and digital products company that focuses on mobile\napp, AR/VR, IoT, and web development, as well as UX/UI and product design. The main objecAve of this project is to\nincorporate requested enhancements into the applicaAon and upgrade the technology plaborm to meet industry\nstandards and best pracAces.\nResponsibiliLes:\n• Involved in full So@ware Development Life Cycle (SDLC) of applicaAon and analysis of the system based on N-Aer\narchitecture.\n• Designed and developed the technical detail design documents based on funcAonal requirements.\n• Developed this applicaAon using Microso@'s .NET Framework technologies.\n• Implemented the design of funcAonality through use cases, business process flows, UI design and UML modelling\nfollowing Waterfall methodologies.\n• Developed and designed the User Interface using XML, HTML, XSL, XSLT, Cascading Style Sheets (CSS) and ASP.NET\n2.0.\n• Created ASP.NET Web Forms and Class libraries containing code for business and data access logic using VB.NET.\n• Developed Security Layers in VB.NET for user AuthenAcaAon. Coded updates and clean up, converted code from\nVB to C++ when moving code from the business layer to the applicaAon layer.\n• Wrote Web Services to retrieve user profile from AcAve Directory to validate user authenAcity.\n• Designed database in SQL Server 2012, wrote many complex queries and stored procedures to manage the\nbusiness rules for various data transacAons.\n• Used LINQ to SQL and LINQ to objects for CRUD operaAons.\n• Used EnLty Framework to provide a relaAonship between tables in the original legacy schema.\n• Maintained Microso@ Office C# ApplicaAons using Visual Studio Tools.\n• Used XML and XPath to create, read, and manipulate the XML data.\n• Implemented XML Web Services in C# based on SOAP protocols using XML and XSLT extensively for data transfers.\nUsed Cascading Style Sheets (CSS) for achieving uniformity through all the web pages.\n• Developed reusable custom data access layer using ADO.NET.\n• Involved in reviewing exisAng applicaAon for enhancements and bug fixing.\nEnvironment: .NET 4.5, ASP.NET 2, VB.NET, Win Forms, Web Forms, C#, EnAty Framework, WCF, MS Visio, AcAve\nDirectory, Visual Studio, HTML, CSS, JavaScript, Blazor, jQuery, Ajax, SOAP, SQL Server 2012",
+          "version": "2.16.105"
+        }
+      }
+    ],
+    "Merge1": [
+      {
+        "json": {
+          "id": "4221279439",
+          "publishedAt": "2025-05-02",
+          "salary": "",
+          "title": "Senior Software Engineer, Backend - Fintech",
+          "jobUrl": "https://www.linkedin.com/jobs/view/senior-software-engineer-backend-fintech-at-hopper-4221279439?trk=public_jobs_topcard-title",
+          "companyName": "Hopper",
+          "companyUrl": "https://ca.linkedin.com/company/hopper?trk=public_jobs_topcard-org-name",
+          "location": "Chicago, IL",
+          "postedTime": "2 weeks ago",
+          "applicationsCount": "Be among the first 25 applicants",
+          "description": "About The Job\n\nHopper’s Hotel Cancel For Any Reason (CFAR) team is responsible for integrating our proprietary fintech offerings with some of the largest travel companies in the world as well as our own direct to customer offerings.\n\nAs such the role is both B2C and B2B2C. Within this vertical we construct systems and build fintech offerings to scale globally, managing how to evolve and innovate on current and new offerings, and translating that to customer value and business value to Hopper as a whole.\n\nWe're looking for a Senior Backend Developer to join our growing fintech team! Within our team you will have the opportunity to deliver an outsized impact for the company on one of the company’s most critical roadmaps.\n\nAs a Sr. Software Engineer you will be directly responsible for designing, implementing, deploying and operating the complex backend systems that power our integrations!\n\nWhat Would Your Day-to-day Look Like\n\n\n * Iterate on features in an agile manner using Scala (no prior experience required) and technologies like GCP, OpenAPI, BigQuery, Pub/Sub among others.\n * Decide how to best build core systems in the context of our microservices architecture\n * Ship your first code in days, iterating on features in an agile manner\n * Collaborate with a diverse group of people, giving and receiving feedback for growth\n * Execute on big opportunities, helping Hopper rise to the top of the travel industry\n   \n   \n\nAn Ideal Candidate Has\n\n\n * The ability to bring leading industry techniques and technologies to the table\n * A strong understanding of distributed systems and how architectural decisions affect performance and maintainability\n * Excelled in cross-functional teams, working fluidly with Product Managers, Data Scientists, Frontend Engineers, and other highly skilled specialists\n * A passionate focus on quality, writing testable code that performs and scales\n * The ability to work with minimal guidance, be proactive and to handle uncertainty, ambiguity and the challenge of quickly evolving goals\n * Prior cloud experience\n * Working with Scala and its libraries\n * Prior travel or eCommerce experience\n * Experience and desire to contribute to front ends as a FS engineer is a plus, especially React web front ends\n   \n   \n\nPerks And Benefits Of Working With Us\n\n\n * Well-funded and proven startup with large ambitions, competitive salary and the upsides of pre-IPO equity packages.\n * Unlimited PTO.\n * Carrot Cash travel stipend.\n * Access to co-working space on demand through FlexDesk AND Work-from-home stipend.\n * Please ask us about our very generous parental leave, much above industry standards!.\n * Entrepreneurial culture where pushing limits and taking risks is everyday business.\n * Open communication with management and company leadership.\n * Small, dynamic teams = massive impact.\n * 100% employer paid Medical, Dental and Vision coverage for employees.\n * Access to Disability & Life insurance.\n * Health Reimbursement Account (HRA).\n * DCA/ FSA and access to 401k plan\n   \n   \n\nMore About Hopper\n\nAt Hopper, we are on a mission to become the leading travel platform globally – powering Hopper’s mobile app, website and our B2B business, HTS (Hopper Technology Solutions). By leveraging massive amounts of data and advanced machine learning algorithms, Hopper combines its world-class travel agency offering with proprietary fintech products to bring transparency, flexibility and savings to travelers globally. We have developed several unique fintech solutions that address everything from pricing volatility to trip disruptions – helping people travel better and save more on their trips.\n\nThe Hopper platform serves hundreds of millions of travelers globally and continues to capture market share around the world. Ranked the third largest online travel agency in North America, the Hopper app has been downloaded over 120 million times and has become largely popular among younger travelers – with 70% of its users being Gen Z and millennials.\n\nWhile everyone knows us as the Gen Z and Millennial travel app, Hopper has evolved to become much more than that. In recent years, we’ve grown into a global travel agency and travel fintech provider that powers some of the world’s largest brands.\n\nThrough HTS, our B2B division, the company supercharges its partners’ direct channels by integrating our fintech products on their sites or powering end-to-end travel portals. Today, our partners include leading travel brands like Capital One, Nubank, Air Canada and many more.\n\nHere are just a few stats that demonstrate the company’s recent growth:\n\nHopper sells billion worth of travel and travel fintech every year. In 2023, over 1.3 billion trips were planned through the Hopper app and our HTS partnerships.\n\nOur fintech products – including Price Freeze, Flexibility for Any Reason and Flight Disruption Assistance – have exceptionally strong CSAT because the terms are always clear, and customers receive instant, no-questions-asked resolutions.\n\nAlmost 30% of our app customers purchase at least one fintech product when making a booking; and consumers are 1.6x more likely to repurchase if they add fintech to their booking vs if they booked just travel.\n\nGiven the success of its fintech products, Hopper launched a B2B initiative, HTS (Hopper Technology Solutions), which represents more than 50% of the business.\n\nThrough HTS, any travel provider (airlines, hotels, banks, travel agencies, etc.) can integrate and seamlessly distribute Hopper’s fintech or travel inventory on their direct channels. As its first HTS partnership, the company partnered with Capital One to co-develop Capital One Travel, a new travel portal designed specifically for cardholders. Other HTS partners include Air Canada, Uber, CommBank, Nubank, Flair Airlines with many more in the pipeline.\n\nFeatured in Apple’s Best of the App Store list of Essential Travel Apps in 2023 and recognized by the likes of Fast Company’s Most Innovative Companies, Hopper has been downloaded over 120 million times and continues to have millions of new installs each month. Hopper is now the #3 largest online travel agency in North America and 70% of our app customers are Gen-Z and millennials travelers.\n\nHopper has raised over $750 million USD of private capital and is backed by some of the largest institutional investors and banks in the world. Hopper is primed to continue its acceleration as the world’s fastest-growing mobile-first travel marketplace.\n\nCome take off with us!\n\nCompensation Range: $150K - $350K\n\n",
+          "contractType": "Full-time",
+          "experienceLevel": "Mid-Senior level",
+          "workType": "Engineering and Information Technology",
+          "sector": "Software Development",
+          "applyUrl": "https://jobs.ashbyhq.com/hopper/27b60d89-f6dd-40e6-b1a7-01f296358bf7/application?utm_source=LinkedIn_Job_Wrapping",
+          "applyType": "EXTERNAL",
+          "descriptionHtml": "\n          <strong>About The Job<br><br></strong>Hopper&#x2019;s Hotel Cancel For Any Reason (CFAR) team is responsible for integrating our proprietary fintech offerings with some of the largest travel companies in the world as well as our own direct to customer offerings.<br><br>As such the role is both B2C and B2B2C. Within this vertical we construct systems and build fintech offerings to scale globally, managing how to evolve and innovate on current and new offerings, and translating that to customer value and business value to Hopper as a whole.<br><br>We&apos;re looking for a Senior Backend Developer to join our growing fintech team! Within our team you will have the opportunity to deliver an outsized impact for the company on one of the company&#x2019;s most critical roadmaps.<br><br>As a Sr. Software Engineer you will be directly responsible for designing, implementing, deploying and operating the complex backend systems that power our integrations!<br><br><strong>What Would Your Day-to-day Look Like<br><br></strong><ul><li>Iterate on features in an agile manner using Scala (no prior experience required) and technologies like GCP, OpenAPI, BigQuery, Pub/Sub among others. </li><li>Decide how to best build core systems in the context of our microservices architecture</li><li>Ship your first code in days, iterating on features in an agile manner</li><li>Collaborate with a diverse group of people, giving and receiving feedback for growth</li><li>Execute on big opportunities, helping Hopper rise to the top of the travel industry<br><br></li></ul><strong>An Ideal Candidate Has<br><br></strong><ul><li>The ability to bring leading industry techniques and technologies to the table</li><li>A strong understanding of distributed systems and how architectural decisions affect performance and maintainability</li><li>Excelled in cross-functional teams, working fluidly with Product Managers, Data Scientists, Frontend Engineers, and other highly skilled specialists</li><li>A passionate focus on quality, writing testable code that performs and scales</li><li>The ability to work with minimal guidance, be proactive and to handle uncertainty, ambiguity and the challenge of quickly evolving goals</li><li>Prior cloud experience</li><li>Working with Scala and its libraries</li><li>Prior travel or eCommerce experience</li><li>Experience and desire to contribute to front ends as a FS engineer is a plus, especially React web front ends<br><br></li></ul><strong>Perks And Benefits Of Working With Us<br><br></strong><ul><li>Well-funded and proven startup with large ambitions, competitive salary and the upsides of pre-IPO equity packages.</li><li>Unlimited PTO.</li><li>Carrot Cash travel stipend.</li><li>Access to co-working space on demand through FlexDesk AND Work-from-home stipend.</li><li>Please ask us about our very generous parental leave, much above industry standards!.</li><li>Entrepreneurial culture where pushing limits and taking risks is everyday business.</li><li>Open communication with management and company leadership.</li><li>Small, dynamic teams = massive impact.</li><li>100% employer paid Medical, Dental and Vision coverage for employees.</li><li>Access to Disability &amp; Life insurance.</li><li>Health Reimbursement Account (HRA).</li><li>DCA/ FSA and access to 401k plan<br><br></li></ul><strong>More About Hopper<br><br></strong>At Hopper, we are on a mission to become the leading travel platform globally &#x2013; powering Hopper&#x2019;s mobile app, website and our B2B business, HTS (Hopper Technology Solutions). By leveraging massive amounts of data and advanced machine learning algorithms, Hopper combines its world-class travel agency offering with proprietary fintech products to bring transparency, flexibility and savings to travelers globally. We have developed several unique fintech solutions that address everything from pricing volatility to trip disruptions &#x2013; helping people travel better and save more on their trips.<br><br>The Hopper platform serves hundreds of millions of travelers globally and continues to capture market share around the world. Ranked the third largest online travel agency in North America, the Hopper app has been downloaded over 120 million times and has become largely popular among younger travelers &#x2013; with 70% of its users being Gen Z and millennials.<br><br>While everyone knows us as the Gen Z and Millennial travel app, Hopper has evolved to become much more than that. In recent years, we&#x2019;ve grown into a global travel agency and travel fintech provider that powers some of the world&#x2019;s largest brands.<br><br>Through HTS, our B2B division, the company supercharges its partners&#x2019; direct channels by integrating our fintech products on their sites or powering end-to-end travel portals. Today, our partners include leading travel brands like Capital One, Nubank, Air Canada and many more.<br><br>Here are just a few stats that demonstrate the company&#x2019;s recent growth:<br><br>Hopper sells billion worth of travel and travel fintech every year. In 2023, over 1.3 billion trips were planned through the Hopper app and our HTS partnerships.<br><br>Our fintech products &#x2013; including Price Freeze, Flexibility for Any Reason and Flight Disruption Assistance &#x2013; have exceptionally strong CSAT because the terms are always clear, and customers receive instant, no-questions-asked resolutions.<br><br>Almost 30% of our app customers purchase at least one fintech product when making a booking; and consumers are 1.6x more likely to repurchase if they add fintech to their booking vs if they booked just travel.<br><br>Given the success of its fintech products, Hopper launched a B2B initiative, HTS (Hopper Technology Solutions), which represents more than 50% of the business.<br><br>Through HTS, any travel provider (airlines, hotels, banks, travel agencies, etc.) can integrate and seamlessly distribute Hopper&#x2019;s fintech or travel inventory on their direct channels. As its first HTS partnership, the company partnered with Capital One to co-develop Capital One Travel, a new travel portal designed specifically for cardholders. Other HTS partners include Air Canada, Uber, CommBank, Nubank, Flair Airlines with many more in the pipeline.<br><br>Featured in Apple&#x2019;s Best of the App Store list of Essential Travel Apps in 2023 and recognized by the likes of Fast Company&#x2019;s Most Innovative Companies, Hopper has been downloaded over 120 million times and continues to have millions of new installs each month. Hopper is now the #3 largest online travel agency in North America and 70% of our app customers are Gen-Z and millennials travelers.<br><br>Hopper has raised over &#x24;750 million USD of private capital and is backed by some of the largest institutional investors and banks in the world. Hopper is primed to continue its acceleration as the world&#x2019;s fastest-growing mobile-first travel marketplace.<br><br>Come take off with us!<br><br>Compensation Range: &#x24;150K - &#x24;350K<br><br>\n        ",
+          "companyId": "1373602",
+          "benefits": "",
+          "posterProfileUrl": "",
+          "posterFullName": ""
+        }
+      },
+      {
+        "json": {
+          "job_skills": {
+            "programming_languages": [
+              "Scala",
+              "Python",
+              "JavaScript",
+              "TypeScript"
+            ],
+            "cloud_platforms": [
+              "Google Cloud Platform (GCP)"
+            ],
+            "google_cloud_services": [
+              "BigQuery",
+              "Pub/Sub"
+            ],
+            "api_specs": [
+              "OpenAPI"
+            ],
+            "architectures": [
+              "Microservices"
+            ],
+            "frontend_frameworks": [
+              "React"
+            ]
+          },
+          "resume_skills": {
+            "programming_languages": [
+              "C#",
+              "VB.NET",
+              "Python",
+              "JavaScript",
+              "TypeScript",
+              "SQL"
+            ],
+            "frameworks_libraries": [
+              ".NET Framework",
+              ".NET Core",
+              "ASP.NET",
+              "ASP.NET MVC",
+              "Entity Framework",
+              "React.js",
+              "Angular",
+              "Blazor",
+              "GraphQL",
+              "WCF",
+              "Django"
+            ],
+            "cloud_platforms": [
+              "Microsoft Azure",
+              "AWS"
+            ],
+            "azure_services": [
+              "Azure App Service",
+              "Azure Kubernetes Service",
+              "Azure Blob Storage",
+              "Azure Synapse",
+              "Azure Data Factory",
+              "Azure DevOps",
+              "Azure Service Bus",
+              "Azure Event Hubs",
+              "Azure Cosmos DB",
+              "Azure Key Vault"
+            ],
+            "databases": [
+              "SQL Server",
+              "Oracle",
+              "Cosmos DB",
+              "NoSQL",
+              "MongoDB"
+            ],
+            "ci_cd_tools": [
+              "Azure DevOps"
+            ],
+            "containerization": [
+              "Docker",
+              "Kubernetes"
+            ],
+            "devops_tools": [
+              "Azure DevOps Pipelines"
+            ],
+            "apis": [
+              "RESTful APIs",
+              "ASP.NET Web API",
+              "GraphQL",
+              "WCF",
+              "SOAP"
+            ],
+            "version_control": [
+              "Git",
+              "TFS",
+              "SVN",
+              "VSS"
+            ],
+            "testing_tools": [
+              "NUnit",
+              "Karma",
+              "PyTest",
+              "Protractor"
+            ],
+            "message_brokers": [
+              "RabbitMQ",
+              "Azure Service Bus"
+            ],
+            "big_data_tools": [
+              "Spark",
+              "Hive",
+              "Pig",
+              "Impala",
+              "HBase"
+            ],
+            "other_tools": [
+              "Visual Studio",
+              "Visual Studio Code",
+              "PowerShell"
+            ]
+          },
+          "missing_skills": {
+            "programming_languages": [
+              "Scala"
+            ],
+            "cloud_platforms": [
+              "Google Cloud Platform (GCP)"
+            ],
+            "google_cloud_services": [
+              "BigQuery",
+              "Pub/Sub"
+            ],
+            "api_specs": [
+              "OpenAPI"
+            ],
+            "architectures": [
+              "Microservices"
+            ],
+            "frontend_frameworks": [
+              "React"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "EXTRACTOR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP DOWNLOAD RESUME": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP APIFY LIN": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EXTRACTOR": {
+      "main": [
+        [
+          {
+            "node": "HTTP APIFY LIN",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP DOWNLOAD RESUME",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets2": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Sheets4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets3": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "009f02c3-0e21-4448-8b69-2bfd300df867",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "291ad86ba6520adb5f0fa38aa4f6bc6d18102aae7ddefa6dcbe97308584f6b37"
+  },
+  "id": "vWPpIMnXacngZtDx",
+  "tags": []
+}
